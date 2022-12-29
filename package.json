@@ -1,0 +1,25 @@
+{
+  "name": "psp-api-nodejs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/teodoraruvceski/psp-api-nodejs.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/teodoraruvceski/psp-api-nodejs/issues"
+  },
+  "homepage": "https://github.com/teodoraruvceski/psp-api-nodejs#readme",
+  "dependencies": {
+    "axios": "^1.2.1",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "winston": "^3.8.2"
+  }
+}
