@@ -2,12 +2,12 @@ const express = require('express');
 const app = express();
 var axios = require('axios');
 const cors = require('cors');
-const { createClient } =require("@supabase/supabase-js");
 const { createLogger, format, transports } = require("winston");
+const repo=require('./Repository.js');
+var bodyParser = require('body-parser')
+var jsonParser = bodyParser.json()
 //database pw:12345678910nebojsa
-const supabaseUrl = 'https://bxrtifkbinmnalcnwjyo.supabase.co'
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4cnRpZmtiaW5tbmFsY253anlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzIzNDU3MTUsImV4cCI6MTk4NzkyMTcxNX0.2EViTiVuraLljRLmjpJSlroYagDVVj0x6_rYLANy638"
-const supabase = createClient(supabaseUrl, supabaseKey);
+
 
 const merchantBankId='69b07549-69a7-473e-8bbc-44440fcb1280';
 const merchanBankPassword='123123';
@@ -33,13 +33,23 @@ const logger = createLogger({
   exceptionHandlers: [new transports.File({ filename: "exceptions.log" })],
   rejectionHandlers: [new transports.File({ filename: "rejections.log" })],
 });
-app.listen(5000, () => console.log(`Server Started on ${5000} `));
+app.listen(5000,async () => {
+  console.log(`Server Started on ${5000} `);
+  
+});
 
 app.get('/', (req, res) => 
 {
   console.log("get");
     logger.info(`from:${req.url}. sending response: http://localhost:3001/home`);
     res.send("http://localhost:3001/home");
+});
+app.get('/get-amount',async (req, res) => 
+{
+  const payment_id=req.query.payment_id;
+  const data=await repo.GetAmount(payment_id);
+  console.log(data);
+  res.send({amount:data[0].amount});
 });
 app.get('/agency-url-success-registration', async(req, res) => 
 {
@@ -62,9 +72,15 @@ app.get('/get-psp-url', (req, res) =>
     logger.info(`from:${req.url}. sending response: http://localhost:3001/home`);
     res.send("http://localhost:3001/home");
 });
-
+app.post('/new-payment', jsonParser,async(req,res)=>
+{
+  console.log(req.body);
+  const data=await repo.AddNewPayment(req.body.amount,req.body.payment_id);
+  console.log(data);
+  res.send('ok');
+});
 //??prvi poziv za placanje sa fronta psp kada biramo nacin placanja
-app.post('/payByCard',async(req,res)=>
+app.post('/pay-by-card',async(req,res)=>
 {
   console.log(req.query);
   const paymentId=req.query.paymentId;
@@ -83,16 +99,16 @@ app.post('/payByCard',async(req,res)=>
   console.log('total');
   try{
 
-    const data=await axios.post('http://localhost:8000/start-payment',paymentInfo);
+    const data=await axios.post(`${merchantBankUrl}/start-payment`,paymentInfo);
     console.log(data);
-    res.send(data.data+`?paymentdId=${paymentId}`); //sending bank-front url to psp-front
+    res.send(data.data); //sending bank-front url to psp-front
   }
   catch(e)
   {
     console.log(e);
   }
 });
-app.post('/payRegistration', async (req, res) => {
+app.post('/pay-by-paypal', async (req, res) => {
   console.log("payRegistration");
     const total=req.query.total;
     const paymentId=req.query.paymentId;
@@ -114,4 +130,33 @@ app.post('/payRegistration', async (req, res) => {
       console.log("error:"+e);
     }
 
+});
+//when choosing QR payment
+app.post('/pay-by-qr',async(req,res)=>
+{
+  console.log(req.query);
+  const paymentId=req.query.paymentId;
+  const total=req.query.total;
+  console.log(total);
+  const paymentInfo={
+    payment_id:req.query.paymentId,
+    merchant_id:merchantBankId,
+    merchant_password:merchanBankPassword,
+    amount:total,
+    merchant_order_id:paymentId,
+    merchant_timestamp:Date.now(),
+    success_url:pspSuccessUrl,
+    failed_url:pspFailedUrl,
+    error_url:pspErrorUrl
+  };
+  try{
+
+    const data=await axios.post('http://localhost:8000/start-payment-qr',paymentInfo);
+    console.log(data); //data.data => should be {url,paymentId}
+    res.send(data.data); 
+  }
+  catch(e)
+  {
+    console.log(e);
+  }
 });
