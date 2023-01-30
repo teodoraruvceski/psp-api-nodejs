@@ -1,5 +1,6 @@
 const express = require('express');
 const app = express();
+const uuid = require('uuid');
 var axios = require('axios');
 const cors = require('cors');
 const { createLogger, format, transports } = require("winston");
@@ -15,6 +16,7 @@ const merchantBankUrl='http://localhost:8000';
 const pspSuccessUrl='http://localhost:3001/success';
 const pspFailedUrl='http://localhost:3001/error';
 const pspErrorUrl='http://localhost:3001/error';
+const front='http://localhost:3001';
 
 const logLevels = {
   fatal: 0,
@@ -53,9 +55,45 @@ app.get('/get-amount',async (req, res) =>
 });
 app.get('/agency-url-success-registration', async(req, res) => 
 {
+  console.log("success");
+  const paymentId=req.query.paymentId;
+  console.log(paymentId)
+  const data=repo.UpdatePayment(paymentId,'executed');
+
     console.log("agency-url-success-payment");
     try{
       const response = await axios.get(`http://localhost:6001/agency-url-success-payment`);
+      console.log("resp:",response.data);
+      logger.info(`from:${req.url}. sending response: ${response.data}`);
+      res.send(response.data);
+    }
+    catch(e){
+      console.log("error:"+e);
+    }
+});
+app.get('/agency-url-error-payment', async(req, res) => 
+{
+  const paymentId=req.query.paymendId;
+  const data=repo.UpdatePayment(paymentId,'failed');
+    console.log("agency-url-error-payment");
+    try{
+      const response = await axios.get(`http://localhost:6001/agency-url-error-payment`);
+      console.log("resp:",response.data);
+      logger.info(`from:${req.url}. sending response: ${response.data}`);
+      res.send(response.data);
+    }
+    catch(e){
+      console.log("error:"+e);
+    }
+});
+app.get('/agency-url-cancel-payment', async(req, res) => 
+{
+  const paymentId=req.query.paymentId;
+  console.log(paymentId);
+  const data=repo.UpdatePayment(paymentId,'canceled');
+    console.log("agency-url-cancel-payment");
+    try{
+      const response = await axios.get(`http://localhost:6001/agency-url-cancel-payment`);
       console.log("resp:",response.data);
       logger.info(`from:${req.url}. sending response: ${response.data}`);
       res.send(response.data);
@@ -77,7 +115,7 @@ app.post('/new-payment', jsonParser,async(req,res)=>
   console.log(req.body);
   const data=await repo.AddNewPayment(req.body.amount,req.body.payment_id);
   console.log(data);
-  res.send('ok');
+  res.send({url:front+'/home'});
 });
 //??prvi poziv za placanje sa fronta psp kada biramo nacin placanja
 app.post('/pay-by-card',async(req,res)=>
@@ -114,9 +152,16 @@ app.post('/pay-by-paypal', async (req, res) => {
     const paymentId=req.query.paymentId;
     //send paypal merchant account info (id, password) // dont store it on payPal api   !!!! 
     try{
-      const response= await axios.post(`http://localhost:3005/payRegistration?total=${total}&paymentId=${paymentId}`);
+      const obj={
+        total:total,
+        paymentId:paymentId,
+        cancel_url:'http://localhost:3001/cancel',
+        return_url:'http://localhost:3001/success',
+        error_url:'http://localhost:3001/error'
+      }
+      const response= await axios.post(`http://localhost:3005/payRegistration`,obj);
       console.log("resp:",response.data);
-      res.send(response.data);
+      res.send({url:response.data,paymendId:''});
       //dodao za supabase da upisuje
     //   const {data}= supabase
     //   .from('companies')

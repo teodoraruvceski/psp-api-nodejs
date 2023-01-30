@@ -8,9 +8,23 @@ exports.AddNewPayment=async function(amount,payment_id)
     const {data,error}= await supabase
     .from('payment-requests-psp')
     .insert(
-      {id:payment_id,amount:amount}
+      {payment_id:payment_id,amount:amount,state:'pendding'}
       )
   .single();
+  return data;
+
+}
+exports.UpdatePayment=async function(payment_id,statee)
+{
+  console.log('aaa')
+    const {data,error}= await supabase
+    .from('payment-requests-psp')
+    .update(
+      {state:statee}
+      )
+  .eq('payment_id',payment_id);
+  console.log(error);
+  console.log(data);
   return data;
 
 }
@@ -19,7 +33,7 @@ exports.GetAmount=async function(payment_id)
     const {data,error}= await supabase
     .from('payment-requests-psp')
     .select()
-    .eq('id',payment_id);
+    .eq('payment_id',payment_id);
     console.log(data);
     return data;
 }
