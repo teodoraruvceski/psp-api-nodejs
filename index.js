@@ -117,13 +117,12 @@ app.post('/new-payment', jsonParser,async(req,res)=>
   console.log(data);
   res.send({url:front+'/home'});
 });
-//??prvi poziv za placanje sa fronta psp kada biramo nacin placanja
 app.post('/pay-by-card',async(req,res)=>
 {
+  console.log('pay-by-card')
   console.log(req.query);
   const paymentId=req.query.paymentId;
   const total=req.query.total;
-  console.log(total);
   const paymentInfo={
     merchant_id:merchantBankId,
     merchant_password:merchanBankPassword,
@@ -138,7 +137,7 @@ app.post('/pay-by-card',async(req,res)=>
   try{
 
     const data=await axios.post(`${merchantBankUrl}/start-payment`,paymentInfo);
-    console.log(data);
+    console.log(data.data);
     res.send(data.data); //sending bank-front url to psp-front
   }
   catch(e)
