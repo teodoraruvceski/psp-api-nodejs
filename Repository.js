@@ -8,7 +8,7 @@ exports.AddNewPayment=async function(amount,payment_id)
     const {data,error}= await supabase
     .from('payment-requests-psp')
     .insert(
-      {payment_id:payment_id,amount:amount,state:'pendding'}
+      {payment_id:payment_id,amount:amount,state:'pendding',date:new Date()}
       )
   .single();
   return data;

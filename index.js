@@ -16,6 +16,7 @@ const merchantBankUrl='http://localhost:8000';
 const pspSuccessUrl='http://localhost:3001/success';
 const pspFailedUrl='http://localhost:3001/error';
 const pspErrorUrl='http://localhost:3001/error';
+const pspCancelUrl='http://localhost:3001/cancel';
 const front='http://localhost:3001';
 
 const logLevels = {
@@ -51,6 +52,7 @@ app.get('/get-amount',async (req, res) =>
   const payment_id=req.query.payment_id;
   const data=await repo.GetAmount(payment_id);
   console.log(data);
+  logger.info(`Time: ${new Date()} Message: Requested amount for payment with payment id ${payment_id}.`);
   res.send({amount:data[0].amount});
 });
 app.get('/agency-url-success-registration', async(req, res) => 
@@ -64,7 +66,7 @@ app.get('/agency-url-success-registration', async(req, res) =>
     try{
       const response = await axios.get(`http://localhost:6001/agency-url-success-payment`);
       console.log("resp:",response.data);
-      logger.info(`from:${req.url}. sending response: ${response.data}`);
+      logger.info(`Time: ${new Date()} Message: Requested success url. Sending response.`);
       res.send(response.data);
     }
     catch(e){
@@ -79,7 +81,7 @@ app.get('/agency-url-error-payment', async(req, res) =>
     try{
       const response = await axios.get(`http://localhost:6001/agency-url-error-payment`);
       console.log("resp:",response.data);
-      logger.info(`from:${req.url}. sending response: ${response.data}`);
+      logger.info(`Time: ${new Date()} Message: Requested error url. Sending response.`);
       res.send(response.data);
     }
     catch(e){
@@ -95,7 +97,7 @@ app.get('/agency-url-cancel-payment', async(req, res) =>
     try{
       const response = await axios.get(`http://localhost:6001/agency-url-cancel-payment`);
       console.log("resp:",response.data);
-      logger.info(`from:${req.url}. sending response: ${response.data}`);
+      logger.info(`Time: ${new Date()} Message: Requested cancel url. Sending response.`);
       res.send(response.data);
     }
     catch(e){
@@ -107,18 +109,20 @@ app.get('/agency-url-cancel-payment', async(req, res) =>
 app.get('/get-psp-url', (req, res) => 
 {
   console.log("get");
-    logger.info(`from:${req.url}. sending response: http://localhost:3001/home`);
-    res.send("http://localhost:3001/home");
+  logger.info(`Time: ${new Date()} Message: Requested url.`);
+    res.send(`${front}/home`);
 });
 app.post('/new-payment', jsonParser,async(req,res)=>
 {
   console.log(req.body);
   const data=await repo.AddNewPayment(req.body.amount,req.body.payment_id);
   console.log(data);
+  logger.info(`Time: ${new Date()} Message: Adding new payment.`);
   res.send({url:front+'/home'});
 });
 app.post('/pay-by-card',async(req,res)=>
 {
+  logger.info(`Time: ${new Date()} Message: Payment by card started.`);
   console.log('pay-by-card')
   console.log(req.query);
   const paymentId=req.query.paymentId;
@@ -130,7 +134,7 @@ app.post('/pay-by-card',async(req,res)=>
     merchant_order_id:paymentId,
     merchant_timestamp:Date.now(),
     success_url:pspSuccessUrl,
-    failed_url:pspFailedUrl,
+    failed_url:pspCancelUrl,
     error_url:pspErrorUrl
   };
   console.log('total');
@@ -142,10 +146,12 @@ app.post('/pay-by-card',async(req,res)=>
   }
   catch(e)
   {
+    logger.error(`Time: ${new Date()} Message: Payment failed.`);
     console.log(e);
   }
 });
 app.post('/pay-by-paypal', async (req, res) => {
+  logger.info(`Time: ${new Date()} Message: Paypal payment started.`);
   console.log("payRegistration");
     const total=req.query.total;
     const paymentId=req.query.paymentId;
@@ -154,9 +160,9 @@ app.post('/pay-by-paypal', async (req, res) => {
       const obj={
         total:total,
         paymentId:paymentId,
-        cancel_url:'http://localhost:3001/cancel',
-        return_url:'http://localhost:3001/success',
-        error_url:'http://localhost:3001/error'
+        cancel_url:pspCancelUrl,
+        return_url:pspSuccessUrl,
+        error_url:pspErrorUrl
       }
       const response= await axios.post(`http://localhost:3005/payRegistration`,obj);
       console.log("resp:",response.data);
@@ -171,6 +177,7 @@ app.post('/pay-by-paypal', async (req, res) => {
     //res.send(id);
     }
     catch(e){
+      logger.error(`Time: ${new Date()} Message: Payment failed.`);
       console.log("error:"+e);
     }
 
@@ -178,6 +185,7 @@ app.post('/pay-by-paypal', async (req, res) => {
 //when choosing QR payment
 app.post('/pay-by-qr',async(req,res)=>
 {
+  logger.info(`Time: ${new Date()} Message: QR code payment started.`);
   console.log(req.query);
   const paymentId=req.query.paymentId;
   const total=req.query.total;
@@ -201,6 +209,33 @@ app.post('/pay-by-qr',async(req,res)=>
   }
   catch(e)
   {
+    logger.error(`Time: ${new Date()} Message: Payment failed.`);
     console.log(e);
   }
+});
+app.post('/pay-by-crypto',jsonParser, async (req, res) => {
+  logger.info(`Time: ${new Date()} Message: Crypto payment started.`);
+    const total=req.query.total;
+    const paymentId=req.query.paymentId;
+    console.log("Req.q",req.query)
+    //send paypal merchant account info (id, password) // dont store it on payPal api   !!!! 
+    try{
+      const order_params = {
+        order_id: paymentId,//nzm treba li ovdje paymentId
+        price_amount: Number(total),
+        price_currency: 'USD', 
+        receive_currency: 'BTC',
+        cancel_url: pspCancelUrl,
+        success_url: pspSuccessUrl
+      }
+      const response= await axios.post(`http://localhost:4005/start-payment`,order_params);
+      console.log("resp:",response.data);
+      //res.send({url:response.data,paymendId:''});  
+      res.send({paymentId:'',url:response.data});
+    }
+    catch(e){
+      logger.error(`Time: ${new Date()} Message: Payment failed.`);
+      console.log("error:"+e);
+    }
+
 });
